@@ -1,0 +1,77 @@
+/* General body styling */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f0f4f8;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+/* Container for the buttons and audio */
+.container {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+/* Button styling */
+button {
+    padding: 12px 20px;
+    font-size: 16px;
+    color: white;
+    background-color: #007bff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 10px;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+/* Hover effect for buttons */
+button:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+/* Disabled button state */
+button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+/* Audio player styling */
+audio {
+    margin-top: 20px;
+    width: 100%;
+    max-width: 300px;
+    outline: none;
+}
+
+/* Styling for end call button to differentiate */
+#endCallBtn {
+    background-color: #dc3545;
+}
+
+#endCallBtn:hover {
+    background-color: #c82333;
+}
+
+/* Responsive design for mobile devices */
+@media (max-width: 768px) {
+    .container {
+        width: 90%;
+    }
+
+    button {
+        width: 100%;
+        margin: 10px 0;
+    }
+
+    audio {
+        width: 100%;
+    }
+}

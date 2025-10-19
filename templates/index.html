@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoIP Communication App</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        /* CSS Styling */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #endCallBtn {
+            background-color: #e74c3c;
+        }
+
+        #endCallBtn:hover {
+            background-color: #c0392b;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 15px;
+            display: block;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f1c40f;
+            border-radius: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>VoIP Communication App</h1>
+        <button id="startCallBtn">Start Call</button>
+        <button id="endCallBtn">End Call</button>
+        <audio id="remoteAudio" controls autoplay></audio>
+        <div class="status" id="statusMessage">Waiting to connect...</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <script>
+        const socket = io.connect();
+        let localStream;
+        let peerConnection;
+        const remoteAudio = document.getElementById('remoteAudio');
+        const startCallBtn = document.getElementById('startCallBtn');
+        const endCallBtn = document.getElementById('endCallBtn');
+        const statusMessage = document.getElementById('statusMessage');
+
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' }  // Google's public STUN server
+            ]
+        };
+
+        startCallBtn.addEventListener('click', async () => {
+            statusMessage.innerText = 'Starting call...';
+            localStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+
+            peerConnection = new RTCPeerConnection(configuration);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            peerConnection.ontrack = event => {
+                const [remoteStream] = event.streams;
+                remoteAudio.srcObject = remoteStream;
+            };
+
+            peerConnection.onicecandidate = event => {
+                if (event.candidate) {
+                    socket.emit('signal', { type: 'candidate', candidate: event.candidate });
+                }
+            };
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit('signal', { type: 'offer', offer: peerConnection.localDescription });
+
+            statusMessage.innerText = 'Call in progress...';
+            remoteAudio.volume = 0;
+        });
+
+        endCallBtn.addEventListener('click', () => {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            statusMessage.innerText = 'Call ended.';
+            remoteAudio.volume = 1;
+        });
+
+        socket.on('signal', async data => {
+            if (data.type === 'offer') {
+                peerConnection = new RTCPeerConnection(configuration);
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+                peerConnection.ontrack = event => {
+                    const [remoteStream] = event.streams;
+                    remoteAudio.srcObject = remoteStream;
+                };
+
+                peerConnection.onicecandidate = event => {
+                    if (event.candidate) {
+                        socket.emit('signal', { type: 'candidate', candidate: event.candidate });
+                    }
+                };
+
+                await peerConnection.setRemoteDescription(data.offer);
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit('signal', { type: 'answer', answer: peerConnection.localDescription });
+
+                statusMessage.innerText = 'Call connected...';
+            } else if (data.type === 'answer') {
+                await peerConnection.setRemoteDescription(data.answer);
+            } else if (data.type === 'candidate') {
+                try {
+                    await peerConnection.addIceCandidate(data.candidate);
+                } catch (e) {
+                    console.error('Error adding ICE candidate', e);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
